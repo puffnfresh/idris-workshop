@@ -64,16 +64,6 @@ total PrintfType : Format -> Type
 ||| Type depends on format String
 total printf : (fmt : String) -> PrintfType (format (unpack fmt))
 
--- Verified algebra
-
-||| Define semigroupOpIsAssociative in the VerifiedSemigroup instance
-data X = MkX
-
-instance Semigroup X where
-  MkX <+> MkX = MkX
-
-instance VerifiedSemigroup X where
-
 -- Propositional equality proofs
 
 ||| Trivial
@@ -86,12 +76,26 @@ total twoIsPlusOneOne : 2 = 1 + 1
 total succIsPlusRightOne : (n : Nat) -> S n = n + 1
 
 
+-- Verified algebra
+
+data Loob = Eurt | Eslaf
+
+instance Semigroup Loob where
+  Eurt  <+> Eurt  = ?eurtEurt
+  Eurt  <+> Eslaf = ?eurtEslaf
+  Eslaf <+> Eurt  = ?eslafEurt
+  Eslaf <+> Eslaf = ?eslafEslaf
+
+instance VerifiedSemigroup Loob where
+  semigroupOpIsAssociative = ?loobSemigroupIsAssociative
+
+
 -- Isomorphism proofs
 
-total maybeBoolIso : Iso Bool (Maybe ())
+total boolLoobIso : Iso Bool Loob
 
 
--- Exists
+-- Exists and with
 
 total filterNot : Vect n a -> (a -> Bool) -> (m ** Vect m a)
 
@@ -134,9 +138,6 @@ total divvOne : (n : Nat) -> repeatedSubtraction n n 0 = n
 total divOne : (n : Nat) -> divNatt n 1 = n
 
 
--- EAdd EBool EBool -> _|_
-
-
 -- Even Odd
 
 data Even : Nat -> Type where
@@ -155,6 +156,37 @@ total oe : Odd n -> Even m -> Odd (n + m)
 
 total oo : Odd n -> Odd m -> Even (n + m)
 
+-- Well-typed interpreter
+
+data ExprTy = TBool | TInt | TString
+
+total interExprTy : ExprTy -> Type
+
+data Expr : ExprTy -> Type where
+  EBool : Bool -> Expr TBool
+  EInt : Int -> Expr TInt
+  EString : String -> Expr TString
+  ELte : Expr TInt -> Expr TInt -> Expr TBool
+  EAdd : Expr TInt -> Expr TInt -> Expr TInt
+  EIf : Expr TBool -> Lazy (Expr a) -> Lazy (Expr a) -> Expr a
+
+total checkInt : Expr TInt -> Expr TString
+checkInt e = EIf (ELte e (EInt 42)) (EString "Less than or equal to 42") (EString "Greater than 42")
+
+total interExpr : Expr a -> interExprTy a
+
+
+-- EDSL for 'dc'
+
+data Dc : Nat -> Type where
+  nop : Dc Z
+  literal : Integer -> Dc n -> Dc (S n)
+  plus : Dc (S (S n)) -> Dc (S n)
+  print : Dc (S n) -> Dc n
+
+||| Idris> emit (print (print (literal 2 (literal 1 nop)))) = " 1 2 p p"
+total emit : Dc n -> String
+
 
 -- Write an effect
 
@@ -162,6 +194,3 @@ total oo : Odd n -> Odd m -> Even (n + m)
 -- Get each N element from a vector, give (div M N)
 
 total everyN : Fin (S n) -> Vect m a -> Vect (divNat m (S n)) a
-
-
--- EDSL for dc
